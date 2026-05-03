@@ -3,12 +3,16 @@ from discord.ext import commands
 from discord import app_commands
 import random
 import unicodedata
-
 import os
+
 TOKEN = os.getenv("TOKEN")
 
 CANAL_ENTRADA = 1500239261952245980
 CANAL_SAIDA = 1500239349583974531
+
+# Calls Bate-Papo
+CANAL_CRIAR_CALL_BATEPAPO = 1500237380068573204
+CATEGORIA_BATEPAPO = 1500237318148325376
 
 # Standoff
 CANAL_CRIAR_CALL_STANDOFF = 1500313730012024962
@@ -24,10 +28,6 @@ CATEGORIA_FF = 1500301895753928845
 CANAL_CRIAR_CALL_BS = 1500319590062882877
 CANAL_CHAT_BS = 1500319493849612379
 CATEGORIA_BS = 1500301934383333397
-
-# Calls Bate-Papo
-CANAL_CRIAR_CALL_BATEPAPO = 1500237380068573204
-CATEGORIA_BATEPAPO = 1500237318148325376
 
 # Entretenimento
 CANAL_AKINATOR = 1500321612560465970
@@ -238,11 +238,33 @@ class VTMView(discord.ui.View):
             embed = discord.Embed(title="❌ Errado!", description="Era **Verdade**!", color=discord.Color.red())
         await interaction.response.edit_message(embed=embed, view=ContinuarPararView(self.member, "vtm"))
 
+class ModoFFView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=30)
+        self.member = member
+
+    @discord.ui.button(label="👥 Duo", style=discord.ButtonStyle.primary)
+    async def duo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{self.member.mention}, escolha a patente:", color=discord.Color.orange())
+        await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_FF, CATEGORIA_FF, "duo"))
+
+    @discord.ui.button(label="🪖 Squad", style=discord.ButtonStyle.primary)
+    async def squad(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{self.member.mention}, escolha a patente:", color=discord.Color.orange())
+        await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_FF, CATEGORIA_FF, "squad"))
+
 class PatenteView(discord.ui.View):
-    def __init__(self, member, patentes, categoria_id):
+    def __init__(self, member, patentes, categoria_id, modo=None):
         super().__init__(timeout=30)
         self.member = member
         self.categoria_id = categoria_id
+        self.modo = modo
         for patente in patentes:
             btn = discord.ui.Button(label=patente, style=discord.ButtonStyle.primary)
             btn.callback = self.make_callback(patente)
@@ -258,14 +280,29 @@ class PatenteView(discord.ui.View):
             if not categoria:
                 await interaction.followup.send("Categoria não encontrada!", ephemeral=True)
                 return
-            numero = sum(1 for c in calls_temporarias.values() if c == patente) + 1
-            user_limit = 5 if self.categoria_id == CATEGORIA_STANDOFF else 0
+
+            if self.modo == "duo":
+                user_limit = 2
+                chave = patente + "duo"
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"👥 Duo - {patente} - Call {numero:02d}"
+            elif self.modo == "squad":
+                user_limit = 4
+                chave = patente + "squad"
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"🪖 Squad - {patente} - Call {numero:02d}"
+            else:
+                user_limit = 5 if self.categoria_id == CATEGORIA_STANDOFF else 0
+                chave = patente
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"{patente} - Call {numero:02d}"
+
             nova_call = await interaction.guild.create_voice_channel(
-                name=f"{patente} - Call {numero:02d}",
+                name=nome,
                 category=categoria,
                 user_limit=user_limit
             )
-            calls_temporarias[nova_call.id] = patente
+            calls_temporarias[nova_call.id] = chave
             await self.member.move_to(nova_call)
             await interaction.message.delete()
         return callback
@@ -307,25 +344,10 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    if after.channel and after.channel.id == CANAL_CRIAR_CALL_STANDOFF:
-        canal_texto = bot.get_channel(CANAL_CHAT_STANDOFF)
-        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{member.mention}, escolha a patente:", color=discord.Color.blurple())
-        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_STANDOFF, CATEGORIA_STANDOFF))
-
-    if after.channel and after.channel.id == CANAL_CRIAR_CALL_FF:
-        canal_texto = bot.get_channel(CANAL_CHAT_FF)
-        embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{member.mention}, escolha a patente:", color=discord.Color.orange())
-        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_FF, CATEGORIA_FF))
-
-    if after.channel and after.channel.id == CANAL_CRIAR_CALL_BS:
-        canal_texto = bot.get_channel(CANAL_CHAT_BS)
-        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha a patente:", color=0xff6b6b)
-        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_BS, CATEGORIA_BS))
-
     # Call simples Bate-Papo
     if after.channel and after.channel.id == CANAL_CRIAR_CALL_BATEPAPO:
         categoria = bot.get_channel(CATEGORIA_BATEPAPO)
-        numero = len([c for c in calls_temporarias.values() if c == "batepapo"]) + 1
+        numero = sum(1 for c in calls_temporarias.values() if c == "batepapo") + 1
         nova_call = await member.guild.create_voice_channel(
             name=f"Call {numero:02d}",
             category=categoria
@@ -333,6 +355,25 @@ async def on_voice_state_update(member, before, after):
         calls_temporarias[nova_call.id] = "batepapo"
         await member.move_to(nova_call)
 
+    # Standoff
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_STANDOFF:
+        canal_texto = bot.get_channel(CANAL_CHAT_STANDOFF)
+        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{member.mention}, escolha a patente:", color=discord.Color.blurple())
+        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_STANDOFF, CATEGORIA_STANDOFF))
+
+    # Free Fire
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_FF:
+        canal_texto = bot.get_channel(CANAL_CHAT_FF)
+        embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{member.mention}, escolha o modo:", color=discord.Color.orange())
+        await canal_texto.send(embed=embed, view=ModoFFView(member))
+
+    # Brawl Stars
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_BS:
+        canal_texto = bot.get_channel(CANAL_CHAT_BS)
+        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha a patente:", color=0xff6b6b)
+        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_BS, CATEGORIA_BS))
+
+    # Deletar call vazia
     if before.channel and before.channel.id in calls_temporarias:
         canal = before.channel
         if len(canal.members) == 0:

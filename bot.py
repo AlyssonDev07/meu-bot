@@ -112,6 +112,33 @@ ADIVINHA = [
     {"dica": "Sou uma sereia que quer ter pernas e viver na terra.", "r": "Ariel"},
 ]
 
+# Anti-spam
+spam_tracker = {}
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    user_id = message.author.id
+    conteudo = message.content.lower().strip()
+
+    if user_id not in spam_tracker:
+        spam_tracker[user_id] = []
+
+    spam_tracker[user_id].append(conteudo)
+    spam_tracker[user_id] = spam_tracker[user_id][-6:]
+
+    if len(spam_tracker[user_id]) == 6 and len(set(spam_tracker[user_id])) == 1:
+        spam_tracker[user_id] = []
+        try:
+            await message.author.timeout(discord.utils.utcnow() + discord.timedelta(seconds=10), reason="Anti-spam")
+            await message.channel.send(f"🔇 {message.author.mention} foi mutado por 10 segundos por spam!", delete_after=5)
+        except:
+            pass
+
+    await bot.process_commands(message)
+
 def normalizar(texto):
     texto = texto.lower().strip()
     texto = unicodedata.normalize('NFD', texto)

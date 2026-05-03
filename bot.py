@@ -322,7 +322,8 @@ class TrofeusBSView(discord.ui.View):
             numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
             nova_call = await interaction.guild.create_voice_channel(
                 name=f"🏆 {faixa} - Call {numero:02d}",
-                category=categoria
+                category=categoria,
+                user_limit=3
             )
             calls_temporarias[nova_call.id] = chave
             await self.member.move_to(nova_call)
@@ -371,6 +372,11 @@ class PatenteView(discord.ui.View):
                 chave = patente + "squad"
                 numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
                 nome = f"🪖 Squad - {patente} - Call {numero:02d}"
+            elif self.modo == "ranked":
+                user_limit = 3
+                chave = patente + "ranked"
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"⚔️ Ranked - {patente} - Call {numero:02d}"
             else:
                 user_limit = 0
                 chave = patente

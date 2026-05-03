@@ -3,7 +3,8 @@ from discord.ext import commands
 from discord import app_commands
 import random
 
-TOKEN = "SEU_TOKEN_AQUI"
+import os
+TOKEN = os.getenv("TOKEN")
 
 CANAL_ENTRADA = 1500239261952245980
 CANAL_SAIDA = 1500239349583974531

@@ -25,6 +25,10 @@ CANAL_CRIAR_CALL_BS = 1500319590062882877
 CANAL_CHAT_BS = 1500319493849612379
 CATEGORIA_BS = 1500301934383333397
 
+# Calls Bate-Papo
+CANAL_CRIAR_CALL_BATEPAPO = 1500237380068573204
+CATEGORIA_BATEPAPO = 1500237318148325376
+
 # Entretenimento
 CANAL_AKINATOR = 1500321612560465970
 CANAL_QUIZ = 1500322868125503518
@@ -315,6 +319,17 @@ async def on_voice_state_update(member, before, after):
         canal_texto = bot.get_channel(CANAL_CHAT_BS)
         embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha a patente:", color=0xff6b6b)
         await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_BS, CATEGORIA_BS))
+
+    # Call simples Bate-Papo
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_BATEPAPO:
+        categoria = bot.get_channel(CATEGORIA_BATEPAPO)
+        numero = len([c for c in calls_temporarias.values() if c == "batepapo"]) + 1
+        nova_call = await member.guild.create_voice_channel(
+            name=f"Call {numero:02d}",
+            category=categoria
+        )
+        calls_temporarias[nova_call.id] = "batepapo"
+        await member.move_to(nova_call)
 
     if before.channel and before.channel.id in calls_temporarias:
         canal = before.channel

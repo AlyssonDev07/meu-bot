@@ -280,6 +280,55 @@ class ModoFFView(discord.ui.View):
         embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{self.member.mention}, escolha a patente:", color=discord.Color.orange())
         await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_FF, CATEGORIA_FF, "squad"))
 
+class ModoBSView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=30)
+        self.member = member
+
+    @discord.ui.button(label="🏆 Push de Troféus", style=discord.ButtonStyle.primary)
+    async def trofeus(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{self.member.mention}, escolha a faixa de troféus:", color=0xff6b6b)
+        await interaction.response.edit_message(embed=embed, view=TrofeusBSView(self.member))
+
+    @discord.ui.button(label="⚔️ Ranked", style=discord.ButtonStyle.primary)
+    async def ranked(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{self.member.mention}, escolha a patente:", color=0xff6b6b)
+        await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_BS, CATEGORIA_BS, "ranked"))
+
+class TrofeusBSView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=30)
+        self.member = member
+        faixas = ["0 - 5k", "5k - 10k", "10k - 20k", "20k - 50k", "50k - 100k"]
+        for faixa in faixas:
+            btn = discord.ui.Button(label=f"🏆 {faixa}", style=discord.ButtonStyle.secondary)
+            btn.callback = self.make_callback(faixa)
+            self.add_item(btn)
+
+    def make_callback(self, faixa):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.member.id:
+                await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+                return
+            await interaction.response.defer()
+            categoria = bot.get_channel(CATEGORIA_BS)
+            chave = "trofeus" + faixa
+            numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+            nova_call = await interaction.guild.create_voice_channel(
+                name=f"🏆 {faixa} - Call {numero:02d}",
+                category=categoria
+            )
+            calls_temporarias[nova_call.id] = chave
+            await self.member.move_to(nova_call)
+            await interaction.message.delete()
+        return callback
+
 class PatenteView(discord.ui.View):
     def __init__(self, member, patentes, categoria_id, modo=None):
         super().__init__(timeout=30)
@@ -401,8 +450,8 @@ async def on_voice_state_update(member, before, after):
     # Brawl Stars
     if after.channel and after.channel.id == CANAL_CRIAR_CALL_BS:
         canal_texto = bot.get_channel(CANAL_CHAT_BS)
-        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha a patente:", color=0xff6b6b)
-        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_BS, CATEGORIA_BS))
+        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha o modo:", color=0xff6b6b)
+        await canal_texto.send(embed=embed, view=ModoBSView(member))
 
     # Deletar call vazia
     if before.channel and before.channel.id in calls_temporarias:

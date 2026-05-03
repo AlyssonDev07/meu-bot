@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import random
+import unicodedata
 
-import os
-TOKEN = os.getenv("TOKEN")
+TOKEN = "SEU_TOKEN_AQUI"
 
 CANAL_ENTRADA = 1500239261952245980
 CANAL_SAIDA = 1500239349583974531
@@ -35,6 +35,7 @@ GUILD_ID = 1499953983601639578
 intents = discord.Intents.default()
 intents.members = True
 intents.voice_states = True
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -44,18 +45,14 @@ PATENTES_STANDOFF = [
     "🥉 Bronze", "🥈 Silver", "🥇 Gold", "🔥 Phoenix",
     "🎯 Ranger", "🏆 Champion", "👑 Master", "⭐ Elite", "🌍 The Legend",
 ]
-
 PATENTES_FF = [
     "🥉 Bronze", "🥈 Prata", "🥇 Ouro",
     "💎 Platina", "💠 Diamante", "👑 Mestre", "🏆 Desafiante",
 ]
-
 PATENTES_BS = [
     "🥉 Bronze", "🥈 Prata", "🥇 Ouro",
     "💠 Diamante", "🔮 Mítico", "🌟 Lendário", "👑 Mestres",
 ]
-
-# ========== PERGUNTAS ==========
 
 QUIZ = {
     "🌍 Mundo": [
@@ -81,10 +78,10 @@ QUIZ = {
     ],
     "🎨 Temas": [
         {"p": "Qual filme ganhou o Oscar de melhor filme em 2020?", "r": ["1917", "Coringa", "Parasita", "Ford vs Ferrari"], "c": "Parasita"},
-        {"p": "Qual música foi mais tocada no mundo em 2023?", "r": ["Flowers", "Shakira", "Unholy", "Anti-Hero"], "c": "Anti-Hero"},
         {"p": "Qual série foi a mais assistida na Netflix em 2023?", "r": ["Stranger Things", "Wednesday", "The Crown", "Squid Game"], "c": "Wednesday"},
         {"p": "Qual cor é formada misturando azul e amarelo?", "r": ["Roxo", "Laranja", "Verde", "Marrom"], "c": "Verde"},
         {"p": "Quantas cores tem o arco-íris?", "r": ["5", "6", "7", "8"], "c": "7"},
+        {"p": "Qual instrumento tem 88 teclas?", "r": ["Violão", "Piano", "Órgão", "Teclado"], "c": "Piano"},
     ],
 }
 
@@ -95,8 +92,8 @@ VTM = [
     {"p": "A água ferve a 100°C no nível do mar.", "c": True},
     {"p": "Os humanos usam apenas 10% do cérebro.", "c": False},
     {"p": "O Sol é uma estrela.", "c": True},
-    {"p": "A língua tem 4 tipos de papilas gustativas.", "c": False},
     {"p": "Morcegos são cegos.", "c": False},
+    {"p": "O ouro é o metal mais pesado do mundo.", "c": False},
 ]
 
 ADIVINHA = [
@@ -109,7 +106,60 @@ ADIVINHA = [
     {"dica": "Sou uma sereia que quer ter pernas e viver na terra.", "r": "Ariel"},
 ]
 
+def normalizar(texto):
+    texto = texto.lower().strip()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    return texto
+
 # ========== VIEWS ==========
+
+class ContinuarPararView(discord.ui.View):
+    def __init__(self, member, modo, tema=None):
+        super().__init__(timeout=30)
+        self.member = member
+        self.modo = modo
+        self.tema = tema
+
+    @discord.ui.button(label="🔄 Jogar novamente", style=discord.ButtonStyle.success)
+    async def jogar_novamente(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+            return
+        if self.modo == "quiz":
+            pergunta = random.choice(QUIZ[self.tema])
+            opcoes = pergunta["r"][:]
+            random.shuffle(opcoes)
+            embed = discord.Embed(title=f"❓ Quiz - {self.tema}", description=pergunta["p"], color=discord.Color.blurple())
+            await interaction.response.edit_message(embed=embed, view=QuizRespostaView(self.member, pergunta["c"], opcoes, self.tema))
+        elif self.modo == "vtm":
+            pergunta = random.choice(VTM)
+            embed = discord.Embed(title="🤔 Verdade ou Mito?", description=pergunta["p"], color=discord.Color.gold())
+            await interaction.response.edit_message(embed=embed, view=VTMView(self.member, pergunta["c"]))
+        elif self.modo == "adivinha":
+            personagem = random.choice(ADIVINHA)
+            embed = discord.Embed(title="🎭 Quem sou eu?", description=f"**Dica:** {personagem['dica']}", color=discord.Color.purple())
+            embed.set_footer(text="Digite sua resposta no chat!")
+            await interaction.response.edit_message(embed=embed, view=None)
+            def check(m):
+                return m.author.id == self.member.id and m.channel.id == CANAL_ADIVINHA
+            try:
+                msg = await bot.wait_for("message", check=check, timeout=30)
+                if normalizar(msg.content) == normalizar(personagem["r"]):
+                    result_embed = discord.Embed(title="✅ Correto! 🎉", description=f"Era **{personagem['r']}**!", color=discord.Color.green())
+                else:
+                    result_embed = discord.Embed(title="❌ Errado!", description=f"A resposta era **{personagem['r']}**!", color=discord.Color.red())
+                await msg.reply(embed=result_embed, view=ContinuarPararView(self.member, "adivinha"))
+            except:
+                await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!", view=ContinuarPararView(self.member, "adivinha"))
+
+    @discord.ui.button(label="⛔ Parar", style=discord.ButtonStyle.danger)
+    async def parar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+            return
+        embed = discord.Embed(title="👋 Até mais!", description="Jogo encerrado!", color=discord.Color.greyple())
+        await interaction.response.edit_message(embed=embed, view=None)
 
 class QuizTemaView(discord.ui.View):
     def __init__(self, member):
@@ -128,20 +178,16 @@ class QuizTemaView(discord.ui.View):
             pergunta = random.choice(QUIZ[tema])
             opcoes = pergunta["r"][:]
             random.shuffle(opcoes)
-            view = QuizRespostaView(interaction.user, pergunta["c"], opcoes)
-            embed = discord.Embed(
-                title=f"❓ Quiz - {tema}",
-                description=pergunta["p"],
-                color=discord.Color.blurple()
-            )
-            await interaction.response.edit_message(embed=embed, view=view)
+            embed = discord.Embed(title=f"❓ Quiz - {tema}", description=pergunta["p"], color=discord.Color.blurple())
+            await interaction.response.edit_message(embed=embed, view=QuizRespostaView(interaction.user, pergunta["c"], opcoes, tema))
         return callback
 
 class QuizRespostaView(discord.ui.View):
-    def __init__(self, member, correta, opcoes):
+    def __init__(self, member, correta, opcoes, tema):
         super().__init__(timeout=20)
         self.member = member
         self.correta = correta
+        self.tema = tema
         for opcao in opcoes:
             btn = discord.ui.Button(label=opcao, style=discord.ButtonStyle.secondary)
             btn.callback = self.make_callback(opcao)
@@ -153,10 +199,10 @@ class QuizRespostaView(discord.ui.View):
                 await interaction.response.send_message("Não é sua vez!", ephemeral=True)
                 return
             if opcao == self.correta:
-                embed = discord.Embed(title="✅ Correto!", description=f"A resposta era **{self.correta}**!", color=discord.Color.green())
+                embed = discord.Embed(title="✅ Correto! 🎉", description=f"A resposta era **{self.correta}**!", color=discord.Color.green())
             else:
                 embed = discord.Embed(title="❌ Errado!", description=f"A resposta certa era **{self.correta}**!", color=discord.Color.red())
-            await interaction.response.edit_message(embed=embed, view=None)
+            await interaction.response.edit_message(embed=embed, view=ContinuarPararView(self.member, "quiz", self.tema))
         return callback
 
 class VTMView(discord.ui.View):
@@ -171,10 +217,10 @@ class VTMView(discord.ui.View):
             await interaction.response.send_message("Não é sua vez!", ephemeral=True)
             return
         if self.correto:
-            embed = discord.Embed(title="✅ Correto!", description="Era **Verdade**!", color=discord.Color.green())
+            embed = discord.Embed(title="✅ Correto! 🎉", description="Era **Verdade**!", color=discord.Color.green())
         else:
             embed = discord.Embed(title="❌ Errado!", description="Era **Mito**!", color=discord.Color.red())
-        await interaction.response.edit_message(embed=embed, view=None)
+        await interaction.response.edit_message(embed=embed, view=ContinuarPararView(self.member, "vtm"))
 
     @discord.ui.button(label="❌ Mito", style=discord.ButtonStyle.danger)
     async def mito(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -182,12 +228,10 @@ class VTMView(discord.ui.View):
             await interaction.response.send_message("Não é sua vez!", ephemeral=True)
             return
         if not self.correto:
-            embed = discord.Embed(title="✅ Correto!", description="Era **Mito**!", color=discord.Color.green())
+            embed = discord.Embed(title="✅ Correto! 🎉", description="Era **Mito**!", color=discord.Color.green())
         else:
             embed = discord.Embed(title="❌ Errado!", description="Era **Verdade**!", color=discord.Color.red())
-        await interaction.response.edit_message(embed=embed, view=None)
-
-# ========== CALLS VIEW ==========
+        await interaction.response.edit_message(embed=embed, view=ContinuarPararView(self.member, "vtm"))
 
 class PatenteView(discord.ui.View):
     def __init__(self, member, patentes, categoria_id):
@@ -321,11 +365,12 @@ async def adivinha(interaction: discord.Interaction):
 
     try:
         msg = await bot.wait_for("message", check=check, timeout=30)
-        if msg.content.lower() == personagem["r"].lower():
-            await msg.reply("✅ Correto! Você acertou! 🎉")
+        if normalizar(msg.content) == normalizar(personagem["r"]):
+            result_embed = discord.Embed(title="✅ Correto! 🎉", description=f"Era **{personagem['r']}**!", color=discord.Color.green())
         else:
-            await msg.reply(f"❌ Errado! A resposta era **{personagem['r']}**!")
+            result_embed = discord.Embed(title="❌ Errado!", description=f"A resposta era **{personagem['r']}**!", color=discord.Color.red())
+        await msg.reply(embed=result_embed, view=ContinuarPararView(interaction.user, "adivinha"))
     except:
-        await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!")
+        await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!", view=ContinuarPararView(interaction.user, "adivinha"))
 
 bot.run(TOKEN)

@@ -1,0 +1,330 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+import random
+
+TOKEN = "SEU_TOKEN_AQUI"
+
+CANAL_ENTRADA = 1500239261952245980
+CANAL_SAIDA = 1500239349583974531
+
+# Standoff
+CANAL_CRIAR_CALL_STANDOFF = 1500313730012024962
+CANAL_CHAT_STANDOFF = 1500315002760859789
+CATEGORIA_STANDOFF = 1500301722965381120
+
+# Free Fire
+CANAL_CRIAR_CALL_FF = 1500308286107549747
+CANAL_CHAT_FF = 1500317425055567933
+CATEGORIA_FF = 1500301895753928845
+
+# Brawl Stars
+CANAL_CRIAR_CALL_BS = 1500319590062882877
+CANAL_CHAT_BS = 1500319493849612379
+CATEGORIA_BS = 1500301934383333397
+
+# Entretenimento
+CANAL_AKINATOR = 1500321612560465970
+CANAL_QUIZ = 1500322868125503518
+CANAL_VTM = 1500322957673893959
+CANAL_ADIVINHA = 1500322978683031572
+
+GUILD_ID = 1499953983601639578
+
+intents = discord.Intents.default()
+intents.members = True
+intents.voice_states = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+calls_temporarias = {}
+
+PATENTES_STANDOFF = [
+    "🥉 Bronze", "🥈 Silver", "🥇 Gold", "🔥 Phoenix",
+    "🎯 Ranger", "🏆 Champion", "👑 Master", "⭐ Elite", "🌍 The Legend",
+]
+
+PATENTES_FF = [
+    "🥉 Bronze", "🥈 Prata", "🥇 Ouro",
+    "💎 Platina", "💠 Diamante", "👑 Mestre", "🏆 Desafiante",
+]
+
+PATENTES_BS = [
+    "🥉 Bronze", "🥈 Prata", "🥇 Ouro",
+    "💠 Diamante", "🔮 Mítico", "🌟 Lendário", "👑 Mestres",
+]
+
+# ========== PERGUNTAS ==========
+
+QUIZ = {
+    "🌍 Mundo": [
+        {"p": "Qual é a capital do Brasil?", "r": ["Brasília", "São Paulo", "Rio de Janeiro", "Salvador"], "c": "Brasília"},
+        {"p": "Qual é o maior oceano do mundo?", "r": ["Atlântico", "Índico", "Ártico", "Pacífico"], "c": "Pacífico"},
+        {"p": "Qual país tem mais habitantes?", "r": ["Índia", "China", "EUA", "Brasil"], "c": "Índia"},
+        {"p": "Qual é o maior país do mundo?", "r": ["Canadá", "China", "Rússia", "EUA"], "c": "Rússia"},
+        {"p": "Em qual continente fica o Egito?", "r": ["Ásia", "Europa", "África", "Oceania"], "c": "África"},
+    ],
+    "👤 Pessoas": [
+        {"p": "Quem inventou o telefone?", "r": ["Edison", "Tesla", "Bell", "Newton"], "c": "Bell"},
+        {"p": "Quem foi o primeiro homem na Lua?", "r": ["Buzz Aldrin", "Neil Armstrong", "Yuri Gagarin", "John Glenn"], "c": "Neil Armstrong"},
+        {"p": "Quem pintou a Monalisa?", "r": ["Picasso", "Van Gogh", "Da Vinci", "Michelangelo"], "c": "Da Vinci"},
+        {"p": "Quem criou o WhatsApp?", "r": ["Zuckerberg", "Jan Koum", "Elon Musk", "Bill Gates"], "c": "Jan Koum"},
+        {"p": "Quem foi Albert Einstein?", "r": ["Filósofo", "Médico", "Físico", "Químico"], "c": "Físico"},
+    ],
+    "🎮 Jogos": [
+        {"p": "Qual patente é a mais alta no Free Fire?", "r": ["Diamante", "Mestre", "Desafiante", "Platina"], "c": "Desafiante"},
+        {"p": "Qual patente é a mais alta no Standoff 2?", "r": ["Master", "Elite", "The Legend", "Champion"], "c": "The Legend"},
+        {"p": "Qual patente é a mais alta no Brawl Stars?", "r": ["Lendário", "Mítico", "Mestres", "Diamante"], "c": "Mestres"},
+        {"p": "Quantos jogadores tem uma partida padrão de Free Fire?", "r": ["50", "75", "100", "150"], "c": "50"},
+        {"p": "Qual é o nome do mapa principal do Standoff 2?", "r": ["Dust", "Agency", "Arena", "Corridor"], "c": "Agency"},
+    ],
+    "🎨 Temas": [
+        {"p": "Qual filme ganhou o Oscar de melhor filme em 2020?", "r": ["1917", "Coringa", "Parasita", "Ford vs Ferrari"], "c": "Parasita"},
+        {"p": "Qual música foi mais tocada no mundo em 2023?", "r": ["Flowers", "Shakira", "Unholy", "Anti-Hero"], "c": "Anti-Hero"},
+        {"p": "Qual série foi a mais assistida na Netflix em 2023?", "r": ["Stranger Things", "Wednesday", "The Crown", "Squid Game"], "c": "Wednesday"},
+        {"p": "Qual cor é formada misturando azul e amarelo?", "r": ["Roxo", "Laranja", "Verde", "Marrom"], "c": "Verde"},
+        {"p": "Quantas cores tem o arco-íris?", "r": ["5", "6", "7", "8"], "c": "7"},
+    ],
+}
+
+VTM = [
+    {"p": "A Muralha da China pode ser vista do espaço.", "c": False},
+    {"p": "Os golfinhos dormem com um olho aberto.", "c": True},
+    {"p": "O coração humano bate cerca de 100 mil vezes por dia.", "c": True},
+    {"p": "A água ferve a 100°C no nível do mar.", "c": True},
+    {"p": "Os humanos usam apenas 10% do cérebro.", "c": False},
+    {"p": "O Sol é uma estrela.", "c": True},
+    {"p": "A língua tem 4 tipos de papilas gustativas.", "c": False},
+    {"p": "Morcegos são cegos.", "c": False},
+]
+
+ADIVINHA = [
+    {"dica": "Sou um herói da Marvel. Tenho escudo e sou americano.", "r": "Capitão América"},
+    {"dica": "Sou uma princesa que tem cabelo comprido e fica numa torre.", "r": "Rapunzel"},
+    {"dica": "Sou um plomeiro italiano que pula em cogumelos.", "r": "Mario"},
+    {"dica": "Sou um detetive famoso que mora na Baker Street.", "r": "Sherlock Holmes"},
+    {"dica": "Sou um rei leão que fugiu do seu reino quando era filhote.", "r": "Simba"},
+    {"dica": "Sou um ninja laranja que quer ser Hokage.", "r": "Naruto"},
+    {"dica": "Sou uma sereia que quer ter pernas e viver na terra.", "r": "Ariel"},
+]
+
+# ========== VIEWS ==========
+
+class QuizTemaView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=30)
+        self.member = member
+        for tema in QUIZ.keys():
+            btn = discord.ui.Button(label=tema, style=discord.ButtonStyle.primary)
+            btn.callback = self.make_callback(tema)
+            self.add_item(btn)
+
+    def make_callback(self, tema):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.member.id:
+                await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+                return
+            pergunta = random.choice(QUIZ[tema])
+            opcoes = pergunta["r"][:]
+            random.shuffle(opcoes)
+            view = QuizRespostaView(interaction.user, pergunta["c"], opcoes)
+            embed = discord.Embed(
+                title=f"❓ Quiz - {tema}",
+                description=pergunta["p"],
+                color=discord.Color.blurple()
+            )
+            await interaction.response.edit_message(embed=embed, view=view)
+        return callback
+
+class QuizRespostaView(discord.ui.View):
+    def __init__(self, member, correta, opcoes):
+        super().__init__(timeout=20)
+        self.member = member
+        self.correta = correta
+        for opcao in opcoes:
+            btn = discord.ui.Button(label=opcao, style=discord.ButtonStyle.secondary)
+            btn.callback = self.make_callback(opcao)
+            self.add_item(btn)
+
+    def make_callback(self, opcao):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.member.id:
+                await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+                return
+            if opcao == self.correta:
+                embed = discord.Embed(title="✅ Correto!", description=f"A resposta era **{self.correta}**!", color=discord.Color.green())
+            else:
+                embed = discord.Embed(title="❌ Errado!", description=f"A resposta certa era **{self.correta}**!", color=discord.Color.red())
+            await interaction.response.edit_message(embed=embed, view=None)
+        return callback
+
+class VTMView(discord.ui.View):
+    def __init__(self, member, correto):
+        super().__init__(timeout=20)
+        self.member = member
+        self.correto = correto
+
+    @discord.ui.button(label="✅ Verdade", style=discord.ButtonStyle.success)
+    async def verdade(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+            return
+        if self.correto:
+            embed = discord.Embed(title="✅ Correto!", description="Era **Verdade**!", color=discord.Color.green())
+        else:
+            embed = discord.Embed(title="❌ Errado!", description="Era **Mito**!", color=discord.Color.red())
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    @discord.ui.button(label="❌ Mito", style=discord.ButtonStyle.danger)
+    async def mito(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Não é sua vez!", ephemeral=True)
+            return
+        if not self.correto:
+            embed = discord.Embed(title="✅ Correto!", description="Era **Mito**!", color=discord.Color.green())
+        else:
+            embed = discord.Embed(title="❌ Errado!", description="Era **Verdade**!", color=discord.Color.red())
+        await interaction.response.edit_message(embed=embed, view=None)
+
+# ========== CALLS VIEW ==========
+
+class PatenteView(discord.ui.View):
+    def __init__(self, member, patentes, categoria_id):
+        super().__init__(timeout=30)
+        self.member = member
+        self.categoria_id = categoria_id
+        for patente in patentes:
+            btn = discord.ui.Button(label=patente, style=discord.ButtonStyle.primary)
+            btn.callback = self.make_callback(patente)
+            self.add_item(btn)
+
+    def make_callback(self, patente):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.member.id:
+                await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+                return
+            await interaction.response.defer()
+            categoria = bot.get_channel(self.categoria_id)
+            if not categoria:
+                await interaction.followup.send("Categoria não encontrada!", ephemeral=True)
+                return
+            numero = sum(1 for c in calls_temporarias.values() if c == patente) + 1
+            nova_call = await interaction.guild.create_voice_channel(
+                name=f"{patente} - Call {numero:02d}",
+                category=categoria
+            )
+            calls_temporarias[nova_call.id] = patente
+            await self.member.move_to(nova_call)
+            await interaction.message.delete()
+        return callback
+
+# ========== EVENTOS ==========
+
+@bot.event
+async def on_ready():
+    print(f"Bot {bot.user} está online!")
+    guild = discord.Object(id=GUILD_ID)
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
+    print("Slash commands sincronizados!")
+
+@bot.event
+async def on_member_join(member):
+    canal = bot.get_channel(CANAL_ENTRADA)
+    if canal:
+        embed = discord.Embed(
+            title="👋 Bem-vindo(a)!",
+            description=f"Olá {member.mention}, seja bem-vindo(a) ao **{member.guild.name}**! 🎉",
+            color=0x9b59b6
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Membro #{member.guild.member_count}")
+        await canal.send(embed=embed)
+
+@bot.event
+async def on_member_remove(member):
+    canal = bot.get_channel(CANAL_SAIDA)
+    if canal:
+        embed = discord.Embed(
+            title="😢 Saiu do servidor",
+            description=f"**{member.name}** saiu do servidor. Até mais!",
+            color=discord.Color.red()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        await canal.send(embed=embed)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_STANDOFF:
+        canal_texto = bot.get_channel(CANAL_CHAT_STANDOFF)
+        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{member.mention}, escolha a patente:", color=discord.Color.blurple())
+        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_STANDOFF, CATEGORIA_STANDOFF))
+
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_FF:
+        canal_texto = bot.get_channel(CANAL_CHAT_FF)
+        embed = discord.Embed(title="🔥 Criar Call - Free Fire", description=f"{member.mention}, escolha a patente:", color=discord.Color.orange())
+        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_FF, CATEGORIA_FF))
+
+    if after.channel and after.channel.id == CANAL_CRIAR_CALL_BS:
+        canal_texto = bot.get_channel(CANAL_CHAT_BS)
+        embed = discord.Embed(title="⚔️ Criar Call - Brawl Stars", description=f"{member.mention}, escolha a patente:", color=0xff6b6b)
+        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_BS, CATEGORIA_BS))
+
+    if before.channel and before.channel.id in calls_temporarias:
+        canal = before.channel
+        if len(canal.members) == 0:
+            del calls_temporarias[canal.id]
+            await canal.delete()
+
+# ========== SLASH COMMANDS ==========
+
+@bot.tree.command(name="aki", description="Jogar Akinator!", guild=discord.Object(id=GUILD_ID))
+async def aki(interaction: discord.Interaction):
+    if interaction.channel_id != CANAL_AKINATOR:
+        await interaction.response.send_message(f"❌ Use esse comando no canal <#{CANAL_AKINATOR}>!", ephemeral=True)
+        return
+    embed = discord.Embed(title="🧞 Akinator", description="Clique no botão abaixo para jogar!", color=0x9b59b6)
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="🎮 Jogar Akinator", url="https://en.akinator.com", style=discord.ButtonStyle.link))
+    await interaction.response.send_message(embed=embed, view=view)
+
+@bot.tree.command(name="quiz", description="Jogar Quiz!", guild=discord.Object(id=GUILD_ID))
+async def quiz(interaction: discord.Interaction):
+    if interaction.channel_id != CANAL_QUIZ:
+        await interaction.response.send_message(f"❌ Use esse comando no canal <#{CANAL_QUIZ}>!", ephemeral=True)
+        return
+    embed = discord.Embed(title="🎯 Quiz", description="Escolha o tema:", color=discord.Color.blurple())
+    await interaction.response.send_message(embed=embed, view=QuizTemaView(interaction.user))
+
+@bot.tree.command(name="vtm", description="Verdade ou Mito!", guild=discord.Object(id=GUILD_ID))
+async def vtm(interaction: discord.Interaction):
+    if interaction.channel_id != CANAL_VTM:
+        await interaction.response.send_message(f"❌ Use esse comando no canal <#{CANAL_VTM}>!", ephemeral=True)
+        return
+    pergunta = random.choice(VTM)
+    embed = discord.Embed(title="🤔 Verdade ou Mito?", description=pergunta["p"], color=discord.Color.gold())
+    await interaction.response.send_message(embed=embed, view=VTMView(interaction.user, pergunta["c"]))
+
+@bot.tree.command(name="adivinha", description="Adivinhe o personagem!", guild=discord.Object(id=GUILD_ID))
+async def adivinha(interaction: discord.Interaction):
+    if interaction.channel_id != CANAL_ADIVINHA:
+        await interaction.response.send_message(f"❌ Use esse comando no canal <#{CANAL_ADIVINHA}>!", ephemeral=True)
+        return
+    personagem = random.choice(ADIVINHA)
+    embed = discord.Embed(title="🎭 Quem sou eu?", description=f"**Dica:** {personagem['dica']}", color=discord.Color.purple())
+    embed.set_footer(text="Digite sua resposta no chat!")
+    await interaction.response.send_message(embed=embed)
+
+    def check(m):
+        return m.author.id == interaction.user.id and m.channel.id == CANAL_ADIVINHA
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=30)
+        if msg.content.lower() == personagem["r"].lower():
+            await msg.reply("✅ Correto! Você acertou! 🎉")
+        else:
+            await msg.reply(f"❌ Errado! A resposta era **{personagem['r']}**!")
+    except:
+        await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!")
+
+bot.run(TOKEN)

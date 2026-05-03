@@ -4,6 +4,7 @@ from discord import app_commands
 import random
 import unicodedata
 import os
+import asyncio
 
 TOKEN = os.getenv("TOKEN")
 
@@ -463,8 +464,14 @@ async def on_voice_state_update(member, before, after):
     if before.channel and before.channel.id in calls_temporarias:
         canal = before.channel
         if len(canal.members) == 0:
-            del calls_temporarias[canal.id]
-            await canal.delete()
+            await asyncio.sleep(60)
+            if len(canal.members) == 0:
+                if canal.id in calls_temporarias:
+                    del calls_temporarias[canal.id]
+                try:
+                    await canal.delete()
+                except:
+                    pass
 
 # ========== SLASH COMMANDS ==========
 
@@ -519,6 +526,13 @@ async def adivinha(interaction: discord.Interaction):
         await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!", view=ContinuarPararView(interaction.user, "adivinha"))
 
 CANAL_REGRAS = 1500227927076241448
+
+@bot.tree.command(name="limpar", description="Apagar todas as mensagens do canal!", guild=discord.Object(id=GUILD_ID))
+@app_commands.checks.has_permissions(manage_messages=True)
+async def limpar(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=1000)
+    await interaction.followup.send(f"🗑️ {len(deleted)} mensagens apagadas!", ephemeral=True)
 
 @bot.tree.command(name="regras", description="Enviar regras do servidor!", guild=discord.Object(id=GUILD_ID))
 async def regras(interaction: discord.Interaction):

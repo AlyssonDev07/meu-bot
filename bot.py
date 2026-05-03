@@ -463,4 +463,30 @@ async def adivinha(interaction: discord.Interaction):
     except:
         await interaction.followup.send(f"⏰ Tempo esgotado! A resposta era **{personagem['r']}**!", view=ContinuarPararView(interaction.user, "adivinha"))
 
+CANAL_REGRAS = 1500227927076241448
+
+@bot.tree.command(name="regras", description="Enviar regras do servidor!", guild=discord.Object(id=GUILD_ID))
+async def regras(interaction: discord.Interaction):
+    if interaction.channel_id != CANAL_REGRAS:
+        await interaction.response.send_message(f"❌ Use esse comando no canal <#{CANAL_REGRAS}>!", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="📜 Regras do Servidor",
+        color=0x9b59b6
+    )
+    embed.add_field(name="1️⃣ Respeite todos os membros", value="Sem xingamentos ou provocações desnecessárias.", inline=False)
+    embed.add_field(name="2️⃣ Proibido spam e flood", value="Sem mensagens repetidas ou desnecessárias.", inline=False)
+    embed.add_field(name="3️⃣ Sem conteúdo impróprio", value="Nada de conteúdo +18 ou perturbador.", inline=False)
+    embed.add_field(name="4️⃣ Sem divulgação", value="Proibido divulgar outros servidores ou links suspeitos.", inline=False)
+    embed.add_field(name="5️⃣ Use os canais corretamente", value="Cada canal tem sua função, respeite isso.", inline=False)
+    embed.add_field(name="6️⃣ Não mencione a Staff sem necessidade", value="Só mencione a Staff em casos realmente necessários.", inline=False)
+    embed.add_field(name="7️⃣ Sem preconceito", value="Nada de racismo, discriminação ou qualquer tipo de preconceito.", inline=False)
+    embed.add_field(name="8️⃣ Respeito nas calls", value="Sem ruídos excessivos ou comportamento perturbador nas calls.", inline=False)
+    embed.add_field(name="9️⃣ Sem trapaças", value="Cheats ou trapaças nos jogos resultam em banimento.", inline=False)
+    embed.add_field(name="🔟 A Staff tem a palavra final", value="Em qualquer situação, a decisão da Staff é definitiva.", inline=False)
+    embed.set_footer(text="⚠️ O descumprimento pode resultar em advertência, mute ou banimento!")
+
+    await interaction.response.send_message(embed=embed)
+
 bot.run(TOKEN)

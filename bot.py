@@ -259,9 +259,11 @@ class PatenteView(discord.ui.View):
                 await interaction.followup.send("Categoria não encontrada!", ephemeral=True)
                 return
             numero = sum(1 for c in calls_temporarias.values() if c == patente) + 1
+            user_limit = 5 if self.categoria_id == CATEGORIA_STANDOFF else 0
             nova_call = await interaction.guild.create_voice_channel(
                 name=f"{patente} - Call {numero:02d}",
-                category=categoria
+                category=categoria,
+                user_limit=user_limit
             )
             calls_temporarias[nova_call.id] = patente
             await self.member.move_to(nova_call)

@@ -238,6 +238,27 @@ class VTMView(discord.ui.View):
             embed = discord.Embed(title="❌ Errado!", description="Era **Verdade**!", color=discord.Color.red())
         await interaction.response.edit_message(embed=embed, view=ContinuarPararView(self.member, "vtm"))
 
+class ModoStandoffView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=30)
+        self.member = member
+
+    @discord.ui.button(label="🤝 Aliados", style=discord.ButtonStyle.primary)
+    async def aliados(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{self.member.mention}, escolha a patente:", color=discord.Color.blurple())
+        await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_STANDOFF, CATEGORIA_STANDOFF, "aliados"))
+
+    @discord.ui.button(label="🏆 Competitivo", style=discord.ButtonStyle.primary)
+    async def competitivo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message("Essa seleção não é sua!", ephemeral=True)
+            return
+        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{self.member.mention}, escolha a patente:", color=discord.Color.blurple())
+        await interaction.response.edit_message(embed=embed, view=PatenteView(self.member, PATENTES_STANDOFF, CATEGORIA_STANDOFF, "competitivo"))
+
 class ModoFFView(discord.ui.View):
     def __init__(self, member):
         super().__init__(timeout=30)
@@ -281,7 +302,17 @@ class PatenteView(discord.ui.View):
                 await interaction.followup.send("Categoria não encontrada!", ephemeral=True)
                 return
 
-            if self.modo == "duo":
+            if self.modo == "aliados":
+                user_limit = 2
+                chave = patente + "aliados"
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"🤝 Aliados - {patente} - Call {numero:02d}"
+            elif self.modo == "competitivo":
+                user_limit = 5
+                chave = patente + "competitivo"
+                numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
+                nome = f"🏆 Competitivo - {patente} - Call {numero:02d}"
+            elif self.modo == "duo":
                 user_limit = 2
                 chave = patente + "duo"
                 numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
@@ -292,7 +323,7 @@ class PatenteView(discord.ui.View):
                 numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
                 nome = f"🪖 Squad - {patente} - Call {numero:02d}"
             else:
-                user_limit = 5 if self.categoria_id == CATEGORIA_STANDOFF else 0
+                user_limit = 0
                 chave = patente
                 numero = sum(1 for c in calls_temporarias.values() if c == chave) + 1
                 nome = f"{patente} - Call {numero:02d}"
@@ -358,8 +389,8 @@ async def on_voice_state_update(member, before, after):
     # Standoff
     if after.channel and after.channel.id == CANAL_CRIAR_CALL_STANDOFF:
         canal_texto = bot.get_channel(CANAL_CHAT_STANDOFF)
-        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{member.mention}, escolha a patente:", color=discord.Color.blurple())
-        await canal_texto.send(embed=embed, view=PatenteView(member, PATENTES_STANDOFF, CATEGORIA_STANDOFF))
+        embed = discord.Embed(title="🎮 Criar Call - Standoff 2", description=f"{member.mention}, escolha o modo:", color=discord.Color.blurple())
+        await canal_texto.send(embed=embed, view=ModoStandoffView(member))
 
     # Free Fire
     if after.channel and after.channel.id == CANAL_CRIAR_CALL_FF:
